@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.3)
+
+set(CMAKE_CXX_STANDARD 14)
+
 project(lls)
 
-add_executable(lls main.cpp)
-
-install(TARGETS lls RUNTIME DESTINATION bin)
+add_subdirectory(src)
