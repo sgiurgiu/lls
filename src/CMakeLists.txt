@@ -11,8 +11,8 @@ find_library(V8_PLATFORM_LIB NAMES  v8_libplatform libv8_libplatform.so.6  REQUI
 
 set(EXECUTABLE_NAME lls)
 
-set (LLS_HEADERS globals.h utils.h)
-set (LLS_SRCS main.cpp globals.cpp utils.cpp)
+set (LLS_HEADERS globals.h utils.h keyboard.h jskeyboard.h)
+set (LLS_SRCS main.cpp globals.cpp utils.cpp keyboard.cpp jskeyboard.cpp)
 
 add_executable(${EXECUTABLE_NAME} ${LLS_SRCS} ${LLS_HEADERS})
 

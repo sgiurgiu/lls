@@ -12,17 +12,11 @@
 #include <unistd.h> // for usleep
 #endif
 
-Globals::Globals()
-{
-    
-}
-
 void Globals::Version(const v8::FunctionCallbackInfo<v8::Value>& args) 
 {
-    args.GetReturnValue().Set(v8::Number::New(args.GetIsolate(), 1.1));
-  /*args.GetReturnValue().Set(
-      v8::String::NewFromUtf8(args.GetIsolate(), v8::V8::GetVersion(),
-                              v8::NewStringType::kNormal).ToLocalChecked());*/
+    args.GetReturnValue().Set(
+      v8::String::NewFromUtf8(args.GetIsolate(), "0.1",
+                              v8::NewStringType::kNormal).ToLocalChecked());
 }
 
 void Globals::Log(const v8::FunctionCallbackInfo<v8::Value>& args) 

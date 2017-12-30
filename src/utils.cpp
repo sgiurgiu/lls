@@ -2,7 +2,8 @@
 
 #include <iostream>
 #include <fstream>
-
+#include <locale>
+#include <codecvt>
 
 std::string Utils::mainScriptFolder = "";
 
@@ -87,7 +88,13 @@ void Utils::ReportException(v8::TryCatch* try_catch, const v8::Local<v8::Context
     }
   }
 }
-
+std::string Utils::ToStr(const std::wstring& wstr)
+{
+    using convert_typeX = std::codecvt_utf8<wchar_t>;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+    
+    return converterX.to_bytes(wstr);    
+}
 std::string Utils::LoadScript(const std::string& fileName, const std::string& base_folder) 
 {
     std::string script;

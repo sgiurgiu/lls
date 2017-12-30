@@ -5,8 +5,9 @@
 
 class Globals
 {
+private:
+    Globals(){}
 public:
-    Globals();
     static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
     static void Log(const v8::FunctionCallbackInfo<v8::Value>& args);
     static void Sleep(const v8::FunctionCallbackInfo<v8::Value>& args);
