@@ -89,7 +89,11 @@ enum class StartupMode : uint8_t {
          ctrl_right, shift_right, alt_right, win_right
 
  };
-
+ struct Color {
+     uint8_t red;
+     uint8_t green;
+     uint8_t blue;
+ };
 class KeyboardError : public std::runtime_error
 {
 public:
@@ -101,11 +105,11 @@ class Keyboard
 {
 public:
     Keyboard(unsigned short vendorId,unsigned short productId,
-             const wchar_t* serialNumber, const wchar_t* manufacturer,
-             const wchar_t* product);
-    ~Keyboard();
-    Keyboard& operator=(Keyboard&& other);
-    Keyboard(Keyboard&& other);
+             const wchar_t* serialNumber, int interfaceNumber,
+             const wchar_t* manufacturer, const wchar_t* product);
+    ~Keyboard() = default;
+    Keyboard& operator=(Keyboard&& other) = default;
+    Keyboard(Keyboard&& other) = default;
     Keyboard& operator=(const Keyboard& other) = delete;
     Keyboard(const Keyboard& other) = delete;
     static bool LoadAvailableKeyboards();
@@ -115,7 +119,7 @@ public:
     {
       bool operator()(const Keyboard& k1, const Keyboard& k2)
       {
-          return std::tie(k1.vendorId,k1.productId) < std::tie(k2.vendorId,k2.productId);
+          return std::tie(k1.vendorId,k1.productId) < std::tie(k2.vendorId,k2.productId);          
       }
     };    
     static const std::set<Keyboard,KeyboardLess>* const GetKeyboards();
@@ -128,13 +132,23 @@ public:
     unsigned short ProductId() const;
     std::wstring SerialNumber() const;
     std::wstring ToString() const;
-    bool SetAllKeys(uint8_t red, uint8_t green, uint8_t blue) const;
+    bool SetAllKeys(const Color& color) const;
+    bool commit() const;
+private:
+    struct KeyValue {
+        Key key;
+        Color color;
+    };
+    typedef std::vector<Key> KeyArray;
+    typedef std::vector<KeyValue> KeyValueArray;
+    typedef std::vector<unsigned char> byte_buffer_t;
+    bool SetKeys(KeyValueArray keyValues) const;
+    bool sendDataInternal(byte_buffer_t &data) const;
+    byte_buffer_t getKeyGroupAddress(KeyAddressGroup keyAddressGroup) const;
 private:
     static std::vector<std::array<uint16_t,3>> SupportedKeyboards;
     static std::set<Keyboard,KeyboardLess> keyboards;
-    typedef std::vector<Key> KeyArray;
-
-
+    
     const KeyArray keyGroupLogo = { Key::logo, Key::logo2 };
     const KeyArray keyGroupIndicators = { Key::caps, Key::num, Key::scroll, Key::game, Key::backlight };
     const KeyArray keyGroupMultimedia = { Key::next, Key::prev, Key::stop, Key::play, Key::mute };
@@ -166,12 +180,13 @@ private:
             Key::comma, Key::period, Key::slash, Key::caps_lock, Key::intl_backslash
     };
     
-    void* hid_handle;
     unsigned short vendorId;
     unsigned short productId;
+    int interfaceNumber;
     std::wstring serialNumber;
     std::wstring manufacturer;
     std::wstring product;
+    KeyboardModel model;
 };
 
 #endif // KEYBOARD_H
