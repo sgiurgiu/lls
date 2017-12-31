@@ -4,6 +4,13 @@
 #include <fstream>
 #include <locale>
 #include <codecvt>
+#ifdef WIN32
+#include <windows.h>
+#elif _POSIX_C_SOURCE >= 199309L
+#include <time.h>   // for nanosleep
+#else
+#include <unistd.h> // for usleep
+#endif
 
 std::string Utils::mainScriptFolder = "";
 
@@ -41,6 +48,21 @@ v8::Local<v8::Value> Utils::RunScript(const v8::Local<v8::String>& source, const
 const char* Utils::ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<string conversion failed>";
 }
+
+void Utils::Sleep(int32_t milliseconds)
+{
+#ifdef WIN32
+    Sleep(milliseconds);
+#elif _POSIX_C_SOURCE >= 199309L
+    struct timespec ts;
+    ts.tv_sec = milliseconds / 1000;
+    ts.tv_nsec = (milliseconds % 1000) * 1000000;
+    nanosleep(&ts, NULL);
+#else
+    usleep(milliseconds * 1000);
+#endif    
+}
+
 
 void Utils::ReportException(v8::TryCatch* try_catch, const v8::Local<v8::Context>& context) 
 {

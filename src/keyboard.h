@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <tuple>
 
+
 enum KeyboardModel : uint8_t {
         unknown = 0x00,
         g213,
@@ -107,9 +108,9 @@ public:
     Keyboard(unsigned short vendorId,unsigned short productId,
              const wchar_t* serialNumber, int interfaceNumber,
              const wchar_t* manufacturer, const wchar_t* product);
-    ~Keyboard() = default;
-    Keyboard& operator=(Keyboard&& other) = default;
-    Keyboard(Keyboard&& other) = default;
+    ~Keyboard();
+    Keyboard& operator=(Keyboard&& other);
+    Keyboard(Keyboard&& other);
     Keyboard& operator=(const Keyboard& other) = delete;
     Keyboard(const Keyboard& other) = delete;
     static bool LoadAvailableKeyboards();
@@ -187,6 +188,7 @@ private:
     std::wstring manufacturer;
     std::wstring product;
     KeyboardModel model;
+    void* hid_handle;
 };
 
 #endif // KEYBOARD_H

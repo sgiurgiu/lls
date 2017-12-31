@@ -4,14 +4,6 @@
 #include <iomanip>
 #include <ctime>
 
-#ifdef WIN32
-#include <windows.h>
-#elif _POSIX_C_SOURCE >= 199309L
-#include <time.h>   // for nanosleep
-#else
-#include <unistd.h> // for usleep
-#endif
-
 void Globals::Version(const v8::FunctionCallbackInfo<v8::Value>& args) 
 {
     args.GetReturnValue().Set(
@@ -53,19 +45,10 @@ void Globals::Sleep(const v8::FunctionCallbackInfo<v8::Value>& args)
         if(!maybeAmount.IsEmpty())
         {
             milliseconds = maybeAmount.ToLocalChecked()->Value();
+            milliseconds = milliseconds > 0 ? milliseconds : 1000;
         }
     }
-    
-#ifdef WIN32
-    Sleep(milliseconds);
-#elif _POSIX_C_SOURCE >= 199309L
-    struct timespec ts;
-    ts.tv_sec = milliseconds / 1000;
-    ts.tv_nsec = (milliseconds % 1000) * 1000000;
-    nanosleep(&ts, NULL);
-#else
-    usleep(milliseconds * 1000);
-#endif
+    Utils::Sleep(milliseconds);
 }
 
 void Globals::Require(const v8::FunctionCallbackInfo<v8::Value>& args) 

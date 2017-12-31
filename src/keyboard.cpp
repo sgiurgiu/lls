@@ -1,6 +1,7 @@
 #include "keyboard.h"
-#include <hidapi/hidapi.h>
+#include "utils.h"
 #include <iostream>
+#include <hidapi/hidapi.h>
 
 std::vector<std::array<uint16_t,3>> Keyboard::SupportedKeyboards = {
         { 0x46d, 0xc336, (u_int16_t)KeyboardModel::g213 },
@@ -20,9 +21,16 @@ std::set<Keyboard,Keyboard::KeyboardLess> Keyboard::keyboards;
 Keyboard::Keyboard(unsigned short vendorId,unsigned short productId,
                    const wchar_t* serialNumber, int interfaceNumber,
                    const wchar_t* manufacturer, const wchar_t* product):
-    vendorId(vendorId),productId(productId),interfaceNumber(interfaceNumber)
+    vendorId(vendorId),productId(productId),interfaceNumber(interfaceNumber),hid_handle(nullptr)
 {
     std::cout << "Keyboard constructed " << vendorId <<":"<<productId <<std::endl;
+    
+    hid_handle = (void*)hid_open(vendorId,productId,serialNumber);
+    if(!hid_handle)
+    {
+        throw KeyboardError("Are udev permissions correct? Unable to open keyboard "+std::to_string(vendorId)+":"+std::to_string(productId));
+    }
+
     if(serialNumber != nullptr) this->serialNumber = std::wstring(serialNumber);
     if(manufacturer != nullptr) this->manufacturer = std::wstring(manufacturer);
     if(product != nullptr) this->product = std::wstring(product);
@@ -35,8 +43,38 @@ Keyboard::Keyboard(unsigned short vendorId,unsigned short productId,
             model = (KeyboardModel)supportedKeyboard[2];
             break;
         }
-    }    
+    }
 }
+Keyboard::~Keyboard()
+{
+    if(hid_handle)
+    {
+        hid_close((hid_device*)hid_handle);
+        hid_handle = nullptr;
+    }
+}
+Keyboard & Keyboard::operator=(Keyboard && other)
+{
+    hid_handle = other.hid_handle;
+    vendorId = std::move(other.vendorId);
+    productId = std::move(other.productId);
+    interfaceNumber = std::move(other.interfaceNumber);
+    serialNumber = std::move(other.serialNumber);
+    manufacturer = std::move(other.manufacturer);
+    product = std::move(other.product);
+    model = std::move(other.model);
+    other.hid_handle = nullptr;
+    return *this;
+}
+
+Keyboard::Keyboard(Keyboard && other):vendorId(std::move(other.vendorId)),productId(std::move(other.productId)),
+    interfaceNumber(std::move(other.interfaceNumber)),serialNumber(std::move(other.serialNumber)),
+    manufacturer(std::move(other.manufacturer)),product(std::move(other.product)),model(std::move(other.model)),
+    hid_handle(other.hid_handle)
+{
+    other.hid_handle = nullptr;
+}
+
 void Keyboard::DisposeKeyboards()
 {
     keyboards.clear();
@@ -79,7 +117,7 @@ std::wstring  Keyboard::ToString() const
 bool Keyboard::SetKeys(KeyValueArray keyValues) const
 {
     if (keyValues.empty()) return false;
-
+    
     bool retval = true;
 
     std::vector<std::vector<KeyValue>> SortedKeys = {
@@ -196,9 +234,7 @@ bool Keyboard::SetKeys(KeyValueArray keyValues) const
                                      }
 
                                      data.resize(data_size, 0x00);
-
-                                     if (retval) retval = sendDataInternal(data);
-                                     else sendDataInternal(data);
+                                     sendDataInternal(data);
 
                              }
 
@@ -232,36 +268,19 @@ bool Keyboard::commit() const
         data.resize(20, 0x00);
         return sendDataInternal(data);
 }
-#include <iomanip>
+
 bool Keyboard::sendDataInternal(byte_buffer_t &data) const
 {
         if (data.size() > 0) {
-            if (hid_init() < 0) return false;
             data.insert(data.begin(), 0x00);
-            std::cout << "writing to usb data size: "<< data.size() << std::endl;
-            std::cout << std::showbase // show the 0x prefix
-            << std::internal // fill between the prefix and the number
-            << std::setfill('0'); // fill with 0s
-            for(auto a : data) std::cout << std::hex << std::setw(2) << (int)a << " " << std::dec ;
-            std::cout << std::endl;
-            hid_device* handle = hid_open(vendorId,productId,serialNumber.empty()?nullptr:serialNumber.c_str());
-            if(!handle)
-            {
-                throw KeyboardError("Are udev permissions correct? Unable to open keyboard "+std::to_string(vendorId)+":"+std::to_string(productId));
-            }
-            if (hid_write(handle, const_cast<unsigned char*>(data.data()), data.size()) < 0) {
+            //a very inneficient way to go about it, but apparently ... needed.
+            Utils::Sleep(1);
+            //if (hid_init() < 0) return false;
+
+            if (hid_write((hid_device*)hid_handle, const_cast<unsigned char*>(data.data()), data.size()) < 0) {
                 std::cout<<"Error: Can not write to hidraw, try with the libusb version"<<std::endl;
             }
-            hid_close(handle);
-            handle = nullptr;
-            hid_exit();
-            /*
-                        byte_buffer_t data2;
-                        data2.resize(21, 0x00);
-                        hid_read_timeout(m_hidHandle, const_cast<unsigned char*>(data2.data()), data2.size(), 1);
-                        */
             return true;
-            
         }
         return false;
 }
@@ -311,8 +330,9 @@ Keyboard::byte_buffer_t Keyboard::getKeyGroupAddress(KeyAddressGroup keyAddressG
 
 bool Keyboard::SetAllKeys(const Color& color) const
 {
+    
     KeyValueArray keyValues;
-   
+    bool retval = false;
     switch (model) {
     case KeyboardModel::g213:
         //for (uint8_t rIndex=0x01; rIndex <= 0x05; rIndex++) if (! setRegion(rIndex, color)) return false;
@@ -335,12 +355,12 @@ bool Keyboard::SetAllKeys(const Color& color) const
         for (uint8_t i = 0; i < keyGroupNumeric.size(); i++) keyValues.push_back({keyGroupNumeric[i], color});
         for (uint8_t i = 0; i < keyGroupModifiers.size(); i++) keyValues.push_back({keyGroupModifiers[i], color});
         for (uint8_t i = 0; i < keyGroupKeys.size(); i++) keyValues.push_back({keyGroupKeys[i], color});
-        return SetKeys(keyValues);
+        retval = SetKeys(keyValues);
     default:
-        return false;
+        retval = false;
     }
-    return false;
     
+    return retval;
 }
 
 const Keyboard* const Keyboard::GetDefaultKeyboard()
@@ -371,14 +391,13 @@ bool Keyboard::LoadAvailableKeyboards()
                 {
                     keyboards.emplace(dev->vendor_id,dev->product_id,dev->serial_number,
                                       dev->interface_number,dev->manufacturer_string,dev->product_string);
-                    std::cout<<dev->interface_number<<std::endl;
                 }
                 catch(const KeyboardError& ex)
                 {
                     std::cerr << ex.what() << std::endl;
                 }
                 break;
-            }            
+            }
         }
         dev = dev->next;
     }
@@ -386,4 +405,5 @@ bool Keyboard::LoadAvailableKeyboards()
     hid_free_enumeration(devs);
     hid_exit();
     return !keyboards.empty();
+    
 }

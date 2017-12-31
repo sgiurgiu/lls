@@ -8,7 +8,7 @@ if(keyboards.length>0)
 
 if(keyboard != null)
 {
-  keyboard.SetAllKeys(0x11,0xaa,0xff);
+  keyboard.SetAllKeys(0x00,0xff,0xff);
   //sleep(5000);
   //keyboard.SetAllKeys(0x11,0x22,0x11);
 
