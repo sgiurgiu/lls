@@ -119,9 +119,9 @@ public:
     {
       bool operator()(const Keyboard& k1, const Keyboard& k2)
       {
-          return std::tie(k1.vendorId,k1.productId) < std::tie(k2.vendorId,k2.productId);          
+          return std::tie(k1.vendorId,k1.productId) < std::tie(k2.vendorId,k2.productId);
       }
-    };    
+    };
     static const std::set<Keyboard,KeyboardLess>* const GetKeyboards();
     
     void Product(const std::wstring&);

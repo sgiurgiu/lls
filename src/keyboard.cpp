@@ -232,22 +232,29 @@ bool Keyboard::commit() const
         data.resize(20, 0x00);
         return sendDataInternal(data);
 }
-
+#include <iomanip>
 bool Keyboard::sendDataInternal(byte_buffer_t &data) const
 {
         if (data.size() > 0) {
-            //if (! open(currentDevice.vendorID, currentDevice.productID, currentDevice.serialNumber)) return false;
+            if (hid_init() < 0) return false;
             data.insert(data.begin(), 0x00);
+            std::cout << "writing to usb data size: "<< data.size() << std::endl;
+            std::cout << std::showbase // show the 0x prefix
+            << std::internal // fill between the prefix and the number
+            << std::setfill('0'); // fill with 0s
+            for(auto a : data) std::cout << std::hex << std::setw(2) << (int)a << " " << std::dec ;
+            std::cout << std::endl;
             hid_device* handle = hid_open(vendorId,productId,serialNumber.empty()?nullptr:serialNumber.c_str());
             if(!handle)
             {
                 throw KeyboardError("Are udev permissions correct? Unable to open keyboard "+std::to_string(vendorId)+":"+std::to_string(productId));
-            }            
+            }
             if (hid_write(handle, const_cast<unsigned char*>(data.data()), data.size()) < 0) {
                 std::cout<<"Error: Can not write to hidraw, try with the libusb version"<<std::endl;
-                return false;
             }
             hid_close(handle);
+            handle = nullptr;
+            hid_exit();
             /*
                         byte_buffer_t data2;
                         data2.resize(21, 0x00);
@@ -377,5 +384,6 @@ bool Keyboard::LoadAvailableKeyboards()
     }
     
     hid_free_enumeration(devs);
+    hid_exit();
     return !keyboards.empty();
 }
