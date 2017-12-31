@@ -222,20 +222,18 @@ bool Keyboard::SetKeys(KeyValueArray keyValues) const
                              const uint8_t maxKeyCount = (data_size - 8) / 4;
 
                              if (data.size() > 0) {
+                                for (uint8_t i = 0; i < maxKeyCount; i++) {
+                                    if (gi + i < SortedKeys[kag].size()) {
+                                            data.push_back(static_cast<uint8_t>(
+                                                    static_cast<uint16_t>(SortedKeys[kag][gi+i].key) & 0x00ff));
+                                            data.push_back(SortedKeys[kag][gi+i].color.red);
+                                            data.push_back(SortedKeys[kag][gi+i].color.green);
+                                            data.push_back(SortedKeys[kag][gi+i].color.blue);
+                                    }
+                                }
 
-                                     for (uint8_t i = 0; i < maxKeyCount; i++) {
-                                             if (gi + i < SortedKeys[kag].size()) {
-                                                     data.push_back(static_cast<uint8_t>(
-                                                             static_cast<uint16_t>(SortedKeys[kag][gi+i].key) & 0x00ff));
-                                                     data.push_back(SortedKeys[kag][gi+i].color.red);
-                                                     data.push_back(SortedKeys[kag][gi+i].color.green);
-                                                     data.push_back(SortedKeys[kag][gi+i].color.blue);
-                                             }
-                                     }
-
-                                     data.resize(data_size, 0x00);
-                                     sendDataInternal(data);
-
+                                data.resize(data_size, 0x00);
+                                write(data);
                              }
 
                              gi = gi + maxKeyCount;
@@ -266,30 +264,32 @@ bool Keyboard::commit() const
                         return false;
         }
         data.resize(20, 0x00);
-        return sendDataInternal(data);
+        return write(data);
 }
 
-bool Keyboard::sendDataInternal(byte_buffer_t &data) const
+int Keyboard::write(byte_buffer_t &data) const
 {
-        if (data.size() > 0) {
-            data.insert(data.begin(), 0x00);
-            //a very inneficient way to go about it, but apparently ... needed.
-            Utils::Sleep(1);
-            //if (hid_init() < 0) return false;
+    if(data.empty()) return -1;
 
-            if (hid_write((hid_device*)hid_handle, const_cast<unsigned char*>(data.data()), data.size()) < 0) {
-                std::cout<<"Error: Can not write to hidraw, try with the libusb version"<<std::endl;
-            }
-            return true;
-        }
-        return false;
+    Utils::Sleep(1); // needs 1ms sleep otherwise data gets all mangled in memory
+    data.insert(data.begin(),0x00);
+    int totalWritten = 0;
+    int written = -1;
+    unsigned char* dataPtr = data.data();
+    size_t size = data.size() ;
+    while (totalWritten < size && 
+        (written = hid_write((hid_device*)hid_handle, dataPtr + totalWritten, size - totalWritten)) > 0) 
+    {
+        totalWritten += written;
+    }
+    return totalWritten;
 }
 Keyboard::byte_buffer_t Keyboard::getKeyGroupAddress(KeyAddressGroup keyAddressGroup) const
 {
     switch (model) {
     case KeyboardModel::g213:
     case KeyboardModel::g413:
-        return {}; // Device doesn't support per-key setting
+        break; // Device doesn't support per-key setting
     case KeyboardModel::g410:
     case KeyboardModel::g610:
     case KeyboardModel::g810:
@@ -330,7 +330,6 @@ Keyboard::byte_buffer_t Keyboard::getKeyGroupAddress(KeyAddressGroup keyAddressG
 
 bool Keyboard::SetAllKeys(const Color& color) const
 {
-    
     KeyValueArray keyValues;
     bool retval = false;
     switch (model) {
@@ -345,22 +344,28 @@ bool Keyboard::SetAllKeys(const Color& color) const
     case KeyboardModel::g810:
     case KeyboardModel::g910:
     case KeyboardModel::gpro:
-        for (uint8_t i = 0; i < keyGroupLogo.size(); i++) keyValues.push_back({keyGroupLogo[i], color});
-        for (uint8_t i = 0; i < keyGroupIndicators.size(); i++) keyValues.push_back({keyGroupIndicators[i], color});
-        for (uint8_t i = 0; i < keyGroupMultimedia.size(); i++) keyValues.push_back({keyGroupMultimedia[i], color});
-        for (uint8_t i = 0; i < keyGroupGKeys.size(); i++) keyValues.push_back({keyGroupGKeys[i], color});
-        for (uint8_t i = 0; i < keyGroupFKeys.size(); i++) keyValues.push_back({keyGroupFKeys[i], color});
-        for (uint8_t i = 0; i < keyGroupFunctions.size(); i++) keyValues.push_back({keyGroupFunctions[i], color});
-        for (uint8_t i = 0; i < keyGroupArrows.size(); i++) keyValues.push_back({keyGroupArrows[i], color});
-        for (uint8_t i = 0; i < keyGroupNumeric.size(); i++) keyValues.push_back({keyGroupNumeric[i], color});
-        for (uint8_t i = 0; i < keyGroupModifiers.size(); i++) keyValues.push_back({keyGroupModifiers[i], color});
-        for (uint8_t i = 0; i < keyGroupKeys.size(); i++) keyValues.push_back({keyGroupKeys[i], color});
+        addKeyToArray(keyGroupLogo,keyValues,color);
+        addKeyToArray(keyGroupIndicators,keyValues,color);
+        addKeyToArray(keyGroupMultimedia,keyValues,color);
+        addKeyToArray(keyGroupGKeys,keyValues,color);
+        addKeyToArray(keyGroupFKeys,keyValues,color);
+        addKeyToArray(keyGroupFunctions,keyValues,color);
+        addKeyToArray(keyGroupArrows,keyValues,color);
+        addKeyToArray(keyGroupNumeric,keyValues,color);
+        addKeyToArray(keyGroupModifiers,keyValues,color);
+        addKeyToArray(keyGroupKeys,keyValues,color);
         retval = SetKeys(keyValues);
     default:
         retval = false;
     }
-    
     return retval;
+}
+void Keyboard::addKeyToArray(const KeyArray& list, KeyValueArray& toArray, const Color& color) const
+{
+    for(auto key:list)
+    {
+        toArray.push_back({key,color});
+    }
 }
 
 const Keyboard* const Keyboard::GetDefaultKeyboard()

@@ -144,8 +144,9 @@ private:
     typedef std::vector<KeyValue> KeyValueArray;
     typedef std::vector<unsigned char> byte_buffer_t;
     bool SetKeys(KeyValueArray keyValues) const;
-    bool sendDataInternal(byte_buffer_t &data) const;
+    int write(byte_buffer_t &data) const;
     byte_buffer_t getKeyGroupAddress(KeyAddressGroup keyAddressGroup) const;
+    void addKeyToArray(const KeyArray& list,KeyValueArray& toArray,const Color& color) const;
 private:
     static std::vector<std::array<uint16_t,3>> SupportedKeyboards;
     static std::set<Keyboard,KeyboardLess> keyboards;

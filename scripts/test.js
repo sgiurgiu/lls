@@ -8,22 +8,19 @@ if(keyboards.length>0)
 
 if(keyboard != null)
 {
-  keyboard.SetAllKeys(0x00,0xff,0xff);
-  //sleep(5000);
-  //keyboard.SetAllKeys(0x11,0x22,0x11);
-
-
-/*    for(var i=0;i<10;i++)
+    
+    for(var i=0;i<10;i++)
     {
-        keyboard.SetAllKeys((i*20),(i*20),i*10);
+        keyboard.SetAllKeys((i*20),(i*20),i*20);
         sleep(100);
     }
     for(var i=10;i>0;i--)
     {
-        keyboard.SetAllKeys((i*20),(i*20),i*10);
+        keyboard.SetAllKeys((i*20),(i*20),i*20);
         sleep(100);
     }
-*/
+    
+    keyboard.SetAllKeys(200,200,200);
 }
 
 for(var i=0;i<keyboards.length;i++)
