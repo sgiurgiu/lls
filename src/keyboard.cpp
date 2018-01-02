@@ -1,6 +1,7 @@
 #include "keyboard.h"
 #include "utils.h"
 #include <iostream>
+#include <algorithm>
 #include <hidapi/hidapi.h>
 
 std::vector<std::array<uint16_t,3>> Keyboard::SupportedKeyboards = {
@@ -114,160 +115,142 @@ std::wstring  Keyboard::ToString() const
             +std::to_wstring(vendorId)+L", product ID: "+std::to_wstring(productId)
             +L", interface: "+std::to_wstring(interfaceNumber);
 }
-bool Keyboard::SetKeys(KeyValueArray keyValues) const
+bool Keyboard::SetKeys(const Keys& keys) const
 {
-    if (keyValues.empty()) return false;
-    
+    if (keys.empty()) return false;
     bool retval = true;
 
-    std::vector<std::vector<KeyValue>> SortedKeys = {
-            {}, // Logo AddressGroup
-            {}, // Indicators AddressGroup
-            {}, // Multimedia AddressGroup
-            {}, // GKeys AddressGroup
-            {} // Keys AddressGroup
-    };
+    Keys logoGroup,indicatorsGroup,multimediaGroup,gkeysGroup,keysGroup;
 
-    for (uint8_t i = 0; i < keyValues.size(); i++) {
-            switch(static_cast<KeyAddressGroup>(static_cast<uint16_t>(keyValues[i].key) >> 8 )) {
-                    case KeyAddressGroup::logo:
-                            switch (model) {
-                                    case KeyboardModel::g610:
-                                    case KeyboardModel::g810:
-                                    case KeyboardModel::gpro:
-                                            if (SortedKeys[0].size() <= 1 && keyValues[i].key == Key::logo)
-                                                    SortedKeys[0].push_back(keyValues[i]);
-                                            break;
-                                    case KeyboardModel::g910:
-                                            if (SortedKeys[0].size() <= 2) SortedKeys[0].push_back(keyValues[i]);
-                                            break;
-                                    default:
-                                            break;
-                            }
-                            break;
-                    case KeyAddressGroup::indicators:
-                            if (SortedKeys[1].size() <= 5) SortedKeys[1].push_back(keyValues[i]);
-                            break;
-            case KeyAddressGroup::multimedia:
-                    switch (model) {
-                            case KeyboardModel::g610:
-                            case KeyboardModel::g810:
-                            case KeyboardModel::gpro:
-                                    if (SortedKeys[2].size() <= 5) SortedKeys[2].push_back(keyValues[i]);
-                                    break;
-                            default:
-                                    break;
-                    }
-                    break;
-            case KeyAddressGroup::gkeys:
-                    switch (model) {
-                            case KeyboardModel::g910:
-                                    if (SortedKeys[3].size() <= 9) SortedKeys[3].push_back(keyValues[i]);
-                                    break;
-                            default:
-                                    break;
-                    }
-                    break;
-            case KeyAddressGroup::keys:
-                    switch (model) {
-                            case KeyboardModel::g610:
-                            case KeyboardModel::g810:
-                            case KeyboardModel::g910:
-                            case KeyboardModel::gpro:
-                                    if (SortedKeys[4].size() <= 120) SortedKeys[4].push_back(keyValues[i]);
-                                    break;
-                            case KeyboardModel::g410:
-                                    if (SortedKeys[4].size() <= 120)
-                                            if (keyValues[i].key < Key::num_lock ||
-                                                keyValues[i].key > Key::num_dot)
-                                                    SortedKeys[4].push_back(keyValues[i]);
-                                    break;
-                            default:
-                                    break;
-                    }
-                    break;
-            }
-    }
-    for (uint8_t kag = 0; kag < 5; kag++) {
-             if (SortedKeys[kag].size() > 0) {
-                     uint8_t gi = 0;
-                     while (gi < SortedKeys[kag].size()) {
-
-                             size_t data_size = 0;
-                             byte_buffer_t data = {};
-
-                             switch (kag) {
-                                     case 0:
-                                             data_size = 20;
-                                             data = getKeyGroupAddress(KeyAddressGroup::logo);
-                                             break;
-                                     case 1:
-                                             data_size = 64;
-                                             data = getKeyGroupAddress(KeyAddressGroup::indicators);
-                                             break;
-                                     case 2:
-                                             data_size = 64;
-                                             data = getKeyGroupAddress(KeyAddressGroup::multimedia);
-                                             break;
-                                     case 3:
-                                             data_size = 64;
-                                             data = getKeyGroupAddress(KeyAddressGroup::gkeys);
-                                             break;
-                                     case 4:
-                                             data_size = 64;
-                                             data = getKeyGroupAddress(KeyAddressGroup::keys);
-                                             break;
-                             }
-
-                             const uint8_t maxKeyCount = (data_size - 8) / 4;
-
-                             if (data.size() > 0) {
-                                for (uint8_t i = 0; i < maxKeyCount; i++) {
-                                    if (gi + i < SortedKeys[kag].size()) {
-                                            data.push_back(static_cast<uint8_t>(
-                                                    static_cast<uint16_t>(SortedKeys[kag][gi+i].key) & 0x00ff));
-                                            data.push_back(SortedKeys[kag][gi+i].color.red);
-                                            data.push_back(SortedKeys[kag][gi+i].color.green);
-                                            data.push_back(SortedKeys[kag][gi+i].color.blue);
-                                    }
-                                }
-
-                                data.resize(data_size, 0x00);
-                                write(data);
-                             }
-
-                             gi = gi + maxKeyCount;
-                     }
-
-             }
-     }
-     return retval;    
-}
-
-bool Keyboard::commit() const
-{
-        byte_buffer_t data;
-        switch (model) {
-                case KeyboardModel::g213:
-                case KeyboardModel::g413:
-                        return true; // Keyboard is non-transactional
-                case KeyboardModel::g410:
+    for (const auto& key : keys) {
+        switch(static_cast<KeyAddressGroup>(static_cast<uint16_t>(key.code) >> 8 )) {
+        case KeyAddressGroup::logo:
+            switch (model) 
+            {
                 case KeyboardModel::g610:
                 case KeyboardModel::g810:
                 case KeyboardModel::gpro:
-                        data = { 0x11, 0xff, 0x0c, 0x5a };
-                        break;
+                    if (logoGroup.size() <= 1 && key.code == KeyCode::logo)
+                        logoGroup.push_back(key);
+                    break;
                 case KeyboardModel::g910:
-                        data = { 0x11, 0xff, 0x0f, 0x5d };
-                        break;
+                    if (logoGroup.size() <= 2) logoGroup.push_back(key);
+                    break;
                 default:
-                        return false;
+                        break;
+            }
+            break;
+        case KeyAddressGroup::indicators:
+            if (indicatorsGroup.size() <= 5) indicatorsGroup.push_back(key);
+            break;
+        case KeyAddressGroup::multimedia:
+            switch (model) 
+            {
+                case KeyboardModel::g610:
+                case KeyboardModel::g810:
+                case KeyboardModel::gpro:
+                    if (multimediaGroup.size() <= 5) multimediaGroup.push_back(key);
+                    break;
+                default:
+                        break;
+            }
+            break;
+        case KeyAddressGroup::gkeys:
+            switch (model) 
+            {
+                case KeyboardModel::g910:
+                    if (gkeysGroup.size() <= 9) gkeysGroup.push_back(key);
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case KeyAddressGroup::keys:
+            switch (model) 
+            {
+                case KeyboardModel::g610:
+                case KeyboardModel::g810:
+                case KeyboardModel::g910:
+                case KeyboardModel::gpro:
+                    if (keysGroup.size() <= 120) keysGroup.push_back(key);
+                    break;
+                case KeyboardModel::g410:
+                    if (keysGroup.size() <= 120 && 
+                        (
+                            key.code < KeyCode::num_lock || key.code > KeyCode::num_dot)
+                        )
+                    {
+                        keysGroup.push_back(key);
+                    }
+                    break;
+                default:
+                        break;
+            }
+            break;
         }
-        data.resize(20, 0x00);
-        return write(data);
+    }
+    
+    WriteGroup(logoGroup,getKeyGroupAddress(KeyAddressGroup::logo),20);
+    WriteGroup(indicatorsGroup,getKeyGroupAddress(KeyAddressGroup::indicators),64);
+    WriteGroup(multimediaGroup,getKeyGroupAddress(KeyAddressGroup::multimedia),64);
+    WriteGroup(gkeysGroup,getKeyGroupAddress(KeyAddressGroup::gkeys),64);
+    WriteGroup(keysGroup,getKeyGroupAddress(KeyAddressGroup::keys),64);
+    
+    return retval;
 }
 
-int Keyboard::write(byte_buffer_t &data) const
+void Keyboard::WriteGroup(const Keys& keys,const byte_buffer_t& keyGroupAddress,size_t dataSize) const
+{
+    const uint8_t maxKeyCount = (dataSize - 8) / 4;
+    uint8_t gi = 0;
+    while (gi < keys.size()) 
+    {
+        byte_buffer_t data = keyGroupAddress;
+        if (data.size() > 0) 
+        {
+            for (uint8_t i = 0; i < maxKeyCount; i++) 
+            {
+                if (gi + i < keys.size()) 
+                {
+                    data.push_back(static_cast<uint8_t>(static_cast<uint16_t>(keys[gi+i].code) & 0x00ff));
+                    data.push_back((keys[gi+i].color & 0xff0000) >> 16);
+                    data.push_back((keys[gi+i].color & 0xff00) >> 8 );
+                    data.push_back((keys[gi+i].color & 0xff));
+                }
+            }
+
+            data.resize(dataSize, 0x00);
+            Write(data);
+        }
+        gi += maxKeyCount;
+    }
+}
+
+
+bool Keyboard::Commit() const
+{
+    byte_buffer_t data;
+    switch (model) {
+            case KeyboardModel::g213:
+            case KeyboardModel::g413:
+                    return true; // Keyboard is non-transactional
+            case KeyboardModel::g410:
+            case KeyboardModel::g610:
+            case KeyboardModel::g810:
+            case KeyboardModel::gpro:
+                    data = { 0x11, 0xff, 0x0c, 0x5a };
+                    break;
+            case KeyboardModel::g910:
+                    data = { 0x11, 0xff, 0x0f, 0x5d };
+                    break;
+            default:
+                    return false;
+    }
+    data.resize(20, 0x00);
+    return Write(data);
+}
+
+int Keyboard::Write(byte_buffer_t &data) const
 {
     if(data.empty()) return -1;
 
@@ -328,9 +311,12 @@ Keyboard::byte_buffer_t Keyboard::getKeyGroupAddress(KeyAddressGroup keyAddressG
 }
 
 
-bool Keyboard::SetAllKeys(const Color& color) const
+bool Keyboard::SetAllKeys(uint32_t color) const
 {
-    KeyValueArray keyValues;
+    auto makeKeyValue = [&color](Key key) -> Key {
+        return {key.code, key.name, color};
+    };
+    Keys keys;
     bool retval = false;
     switch (model) {
     case KeyboardModel::g213:
@@ -344,28 +330,37 @@ bool Keyboard::SetAllKeys(const Color& color) const
     case KeyboardModel::g810:
     case KeyboardModel::g910:
     case KeyboardModel::gpro:
-        addKeyToArray(keyGroupLogo,keyValues,color);
-        addKeyToArray(keyGroupIndicators,keyValues,color);
-        addKeyToArray(keyGroupMultimedia,keyValues,color);
-        addKeyToArray(keyGroupGKeys,keyValues,color);
-        addKeyToArray(keyGroupFKeys,keyValues,color);
-        addKeyToArray(keyGroupFunctions,keyValues,color);
-        addKeyToArray(keyGroupArrows,keyValues,color);
-        addKeyToArray(keyGroupNumeric,keyValues,color);
-        addKeyToArray(keyGroupModifiers,keyValues,color);
-        addKeyToArray(keyGroupKeys,keyValues,color);
-        retval = SetKeys(keyValues);
+        std::transform(keyGroupLogo.begin(),keyGroupLogo.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupIndicators.begin(),keyGroupIndicators.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupMultimedia.begin(),keyGroupMultimedia.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupGKeys.begin(),keyGroupGKeys.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupFKeys.begin(),keyGroupFKeys.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupFunctions.begin(),keyGroupFunctions.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupArrows.begin(),keyGroupArrows.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupNumeric.begin(),keyGroupNumeric.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupModifiers.begin(),keyGroupModifiers.end(),std::back_inserter(keys),makeKeyValue);
+        std::transform(keyGroupKeys.begin(),keyGroupKeys.end(),std::back_inserter(keys),makeKeyValue);
+        retval = SetKeys(keys);
     default:
         retval = false;
     }
     return retval;
 }
-void Keyboard::addKeyToArray(const KeyArray& list, KeyValueArray& toArray, const Color& color) const
+
+Keys Keyboard::GetAllKeys() const
 {
-    for(auto key:list)
-    {
-        toArray.push_back({key,color});
-    }
+    Keys allKeys;
+    std::copy(keyGroupLogo.begin(),keyGroupLogo.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupIndicators.begin(),keyGroupIndicators.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupMultimedia.begin(),keyGroupMultimedia.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupGKeys.begin(),keyGroupGKeys.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupFKeys.begin(),keyGroupFKeys.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupFunctions.begin(),keyGroupFunctions.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupArrows.begin(),keyGroupArrows.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupNumeric.begin(),keyGroupNumeric.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupModifiers.begin(),keyGroupModifiers.end(),std::back_inserter(allKeys));
+    std::copy(keyGroupKeys.begin(),keyGroupKeys.end(),std::back_inserter(allKeys));
+    return allKeys;
 }
 
 const Keyboard* const Keyboard::GetDefaultKeyboard()

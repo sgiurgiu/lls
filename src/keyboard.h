@@ -57,7 +57,7 @@ enum class StartupMode : uint8_t {
          numeric,
          keys
  };
- enum class Key : uint16_t { // 127 items
+ enum class KeyCode : uint16_t { // 127 items
 
          logo = static_cast<uint8_t>(KeyAddressGroup::logo) << 8 | 0x01,
          logo2,
@@ -89,19 +89,22 @@ enum class StartupMode : uint8_t {
          shift_left, alt_left, win_left,
          ctrl_right, shift_right, alt_right, win_right
 
- };
- struct Color {
-     uint8_t red;
-     uint8_t green;
-     uint8_t blue;
- };
+};
 class KeyboardError : public std::runtime_error
 {
 public:
     KeyboardError(const char* msg):std::runtime_error(msg){}
     KeyboardError(const std::string& msg):std::runtime_error(msg){}
 };
-
+struct Key {
+    Key(){}
+    Key(KeyCode code,const std::string& name,uint32_t color):
+    code(code),name(name),color(color){}
+    KeyCode code;
+    std::string name;
+    uint32_t color = 0;
+};
+typedef std::vector<Key> Keys;
 class Keyboard
 {
 public:
@@ -133,53 +136,70 @@ public:
     unsigned short ProductId() const;
     std::wstring SerialNumber() const;
     std::wstring ToString() const;
-    bool SetAllKeys(const Color& color) const;
-    bool commit() const;
+    bool SetAllKeys(uint32_t color) const;
+    bool Commit() const;
+    Keys GetAllKeys() const;
 private:
-    struct KeyValue {
-        Key key;
-        Color color;
-    };
-    typedef std::vector<Key> KeyArray;
-    typedef std::vector<KeyValue> KeyValueArray;
     typedef std::vector<unsigned char> byte_buffer_t;
-    bool SetKeys(KeyValueArray keyValues) const;
-    int write(byte_buffer_t &data) const;
+    bool SetKeys(const Keys& keys) const;
+    int Write(byte_buffer_t &data) const;
     byte_buffer_t getKeyGroupAddress(KeyAddressGroup keyAddressGroup) const;
-    void addKeyToArray(const KeyArray& list,KeyValueArray& toArray,const Color& color) const;
+    void WriteGroup(const Keys& keys,const byte_buffer_t& keyGroupAddress,size_t dataSize) const;
 private:
     static std::vector<std::array<uint16_t,3>> SupportedKeyboards;
     static std::set<Keyboard,KeyboardLess> keyboards;
     
-    const KeyArray keyGroupLogo = { Key::logo, Key::logo2 };
-    const KeyArray keyGroupIndicators = { Key::caps, Key::num, Key::scroll, Key::game, Key::backlight };
-    const KeyArray keyGroupMultimedia = { Key::next, Key::prev, Key::stop, Key::play, Key::mute };
-    const KeyArray keyGroupGKeys = { Key::g1, Key::g2, Key::g3, Key::g4, Key::g5, Key::g6, Key::g7, Key::g8, Key::g9 };
-    const KeyArray keyGroupFKeys = {
-            Key::f1, Key::f2, Key::f3, Key::f4, Key::f5, Key::f6,
-            Key::f7, Key::f8, Key::f9, Key::f10, Key::f11, Key::f12
+    const Keys keyGroupLogo = { {KeyCode::logo,"logo", 0}, {KeyCode::logo2,"logo2", 0 } };
+    const Keys keyGroupIndicators = { { KeyCode::caps, "caps", 0 }, {KeyCode::num, "num", 0} , 
+        {KeyCode::scroll, "scroll", 0 }, {KeyCode::game, "game", 0}, {KeyCode::backlight, "backlight" ,0} };
+    
+    const Keys keyGroupMultimedia = { {KeyCode::next, "next", 0}, {KeyCode::prev, "prev", 0} , 
+        {KeyCode::stop, "stop", 0}, {KeyCode::play, "play", 0}, {KeyCode::mute,"mute",0} };
+    const Keys keyGroupGKeys = { { KeyCode::g1, "g1", 0}, {KeyCode::g2, "g2", 0}, {KeyCode::g3,"g3",0} , 
+        { KeyCode::g4, "g4",0}, {KeyCode::g5, "g5",0 }, {KeyCode::g6, "g6", 0}, {KeyCode::g7, "g7", 0}, 
+        { KeyCode::g8, "g8" , 0} , {KeyCode::g9, "g9",0} };
+    const Keys keyGroupFKeys = {
+        {KeyCode::f1, "f1", 0}, {KeyCode::f2, "f2", 0}, {KeyCode::f3, "f3", 0}, {KeyCode::f4, "f4", 0}, 
+        {KeyCode::f5, "f5", 0}, {KeyCode::f6, "f6", 0}, {KeyCode::f7, "f7", 0}, {KeyCode::f8, "f8", 0}, 
+        {KeyCode::f9, "f9", 0}, {KeyCode::f10, "f10", 0}, {KeyCode::f11, "f11", 0}, {KeyCode::f12, "f12", 0}
     };
-    const KeyArray keyGroupModifiers = {
-            Key::shift_left, Key::ctrl_left, Key::win_left, Key::alt_left,
-            Key::alt_right, Key::win_right, Key::ctrl_right, Key::shift_right, Key::menu };
-    const KeyArray keyGroupFunctions = {
-            Key::esc, Key::print_screen, Key::scroll_lock, Key::pause_break,
-            Key::insert, Key::del, Key::home, Key::end, Key::page_up, Key::page_down
+    const Keys keyGroupModifiers = {
+        {KeyCode::shift_left, "shift left", 0}, {KeyCode::ctrl_left, "ctrl left", 0}, 
+        {KeyCode::win_left, "win left", 0}, {KeyCode::alt_left, "alt left", 0}, {KeyCode::alt_right, "alt right", 0}, 
+        {KeyCode::win_right, "win right", 0}, {KeyCode::ctrl_right, "ctrl right", 0}, {KeyCode::shift_right, "shift right", 0}, 
+        {KeyCode::menu, "menu", 0} };
+    const Keys keyGroupFunctions = {
+        {KeyCode::esc, "esc", 0}, {KeyCode::print_screen, "print screen", 0}, {KeyCode::scroll_lock, "scroll lock", 0}, 
+        {KeyCode::pause_break, "pause break", 0}, {KeyCode::insert, "insert", 0}, {KeyCode::del, "del", 0}, 
+        {KeyCode::home, "home", 0}, {KeyCode::end, "end", 0}, {KeyCode::page_up, "page up", 0}, {KeyCode::page_down, "page down", 0}
     };
-    const KeyArray keyGroupArrows = { Key::arrow_top, Key::arrow_left, Key::arrow_bottom, Key::arrow_right };
-    const KeyArray keyGroupNumeric = {
-            Key::num_1, Key::num_2, Key::num_3, Key::num_4, Key::num_5,
-            Key::num_6, Key::num_7, Key::num_8, Key::num_9, Key::num_0,
-            Key::num_dot, Key::num_enter, Key::num_plus, Key::num_minus,
-            Key::num_asterisk, Key::num_slash, Key::num_lock
+    const Keys keyGroupArrows = { 
+        {KeyCode::arrow_top, "arrow top", 0}, {KeyCode::arrow_left, "arrow left", 0}, 
+        {KeyCode::arrow_bottom, "arrow bottom", 0}, {KeyCode::arrow_right, "arrow right", 0} };
+    const Keys keyGroupNumeric = {
+        {KeyCode::num_1, "num 1", 0}, {KeyCode::num_2, "num 2", 0}, {KeyCode::num_3, "num 3", 0}, 
+        {KeyCode::num_4, "num 4", 0}, {KeyCode::num_5, "num 5", 0}, {KeyCode::num_6, "num 6", 0}, 
+        {KeyCode::num_7, "num 7", 0}, {KeyCode::num_8, "num 8", 0}, {KeyCode::num_9, "num 0", 0}, 
+        {KeyCode::num_0, "num 0", 0}, {KeyCode::num_dot, "num .", 0}, {KeyCode::num_enter, "num enter", 0}, 
+        {KeyCode::num_plus, "num +", 0}, {KeyCode::num_minus, "num -", 0},{KeyCode::num_asterisk, "num *", 0}, 
+        {KeyCode::num_slash, "num /", 0}, {KeyCode::num_lock, "num lock", 0}
     };
-    const KeyArray keyGroupKeys = {
-            Key::a, Key::b, Key::c, Key::d, Key::e, Key::f, Key::g, Key::h, Key::i, Key::j, Key::k, Key::l, Key::m,
-            Key::n, Key::o, Key::p, Key::q, Key::r, Key::s, Key::t, Key::u, Key::v, Key::w, Key::x, Key::y, Key::z,
-            Key::n1, Key::n2, Key::n3, Key::n4, Key::n5, Key::n6, Key::n7, Key::n8, Key::n9, Key::n0,
-            Key::enter, Key::backspace, Key::tab, Key::space, Key::minus, Key::equal,
-            Key::open_bracket, Key::close_bracket, Key::backslash, Key::dollar, Key::semicolon, Key::quote, Key::tilde,
-            Key::comma, Key::period, Key::slash, Key::caps_lock, Key::intl_backslash
+    const Keys keyGroupKeys = {
+        {KeyCode::a, "a", 0}, {KeyCode::b, "b", 0}, {KeyCode::c, "c", 0}, {KeyCode::d, "d", 0}, 
+        {KeyCode::e, "e", 0}, {KeyCode::f, "f", 0}, {KeyCode::g, "g", 0}, {KeyCode::h, "h", 0}, 
+        {KeyCode::i, "i", 0}, {KeyCode::j, "j", 0}, {KeyCode::k, "k", 0}, {KeyCode::l, "l", 0}, 
+        {KeyCode::m, "m", 0}, {KeyCode::n, "n", 0}, {KeyCode::o, "o", 0}, {KeyCode::p, "p", 0}, 
+        {KeyCode::q, "q", 0}, {KeyCode::r, "r", 0}, {KeyCode::s, "s", 0}, {KeyCode::t, "t", 0}, 
+        {KeyCode::u, "u", 0}, {KeyCode::v, "v", 0}, {KeyCode::w, "w", 0}, {KeyCode::x, "x", 0}, 
+        {KeyCode::y, "y", 0}, {KeyCode::z, "z", 0}, {KeyCode::n1, "1", 0}, {KeyCode::n2, "2", 0}, 
+        {KeyCode::n3, "3", 0}, {KeyCode::n4, "4", 0}, {KeyCode::n5, "5", 0}, {KeyCode::n6, "6", 0}, 
+        {KeyCode::n7, "7", 0}, {KeyCode::n8, "8", 0}, {KeyCode::n9, "9", 0}, {KeyCode::n0, "0", 0},
+        {KeyCode::enter, "enter", 0}, {KeyCode::backspace, "backspace", 0}, {KeyCode::tab, "tab", 0}, 
+        {KeyCode::space, "space", 0}, {KeyCode::minus, "-", 0}, {KeyCode::equal, "=", 0},
+        {KeyCode::open_bracket, "[", 0}, {KeyCode::close_bracket, "]", 0}, {KeyCode::backslash, "\\", 0}, 
+        {KeyCode::dollar, "$", 0}, {KeyCode::semicolon, ";", 0}, {KeyCode::quote, "'", 0}, {KeyCode::tilde, "~", 0},
+        {KeyCode::comma, ",", 0}, {KeyCode::period, ".", 0}, {KeyCode::slash, "/", 0}, {KeyCode::caps_lock, "caps", 0}, 
+        {KeyCode::intl_backslash, "<", 0}
     };
     
     unsigned short vendorId;

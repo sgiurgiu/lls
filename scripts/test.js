@@ -26,4 +26,5 @@ if(keyboard != null)
 for(var i=0;i<keyboards.length;i++)
 {
     log(keyboards[i].ToString());
+    log(JSON.stringify(keyboards[i].GetKeys()));
 }
