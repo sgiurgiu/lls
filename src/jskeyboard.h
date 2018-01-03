@@ -15,7 +15,6 @@ private:
     static void SetAllKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
     static void GetAllKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
     static void UpdateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
-    static void UpdateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
     static v8::Local<v8::Object> WrapKeyboard(v8::Isolate* isolate, 
                                               const Keyboard* const keyboard);
     static v8::Local<v8::Object> WrapKey(v8::Isolate* isolate,const Key& key);
