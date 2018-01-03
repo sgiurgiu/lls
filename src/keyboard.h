@@ -139,9 +139,9 @@ public:
     bool SetAllKeys(uint32_t color) const;
     bool Commit() const;
     Keys GetAllKeys() const;
+    bool SetKeys(const Keys& keys) const;
 private:
     typedef std::vector<unsigned char> byte_buffer_t;
-    bool SetKeys(const Keys& keys) const;
     int Write(byte_buffer_t &data) const;
     byte_buffer_t getKeyGroupAddress(KeyAddressGroup keyAddressGroup) const;
     void WriteGroup(const Keys& keys,const byte_buffer_t& keyGroupAddress,size_t dataSize) const;

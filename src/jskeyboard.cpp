@@ -33,8 +33,12 @@ v8::Local<v8::Object> JsKeyboard::WrapKeyboard(v8::Isolate* isolate, const Keybo
     keyboardTemplate->SetInternalFieldCount(1);
     keyboardTemplate->Set(v8::String::NewFromUtf8(isolate,"ToString",v8::NewStringType::kNormal)
                         .ToLocalChecked(), v8::FunctionTemplate::New(isolate, ToString));
-    keyboardTemplate->Set(v8::String::NewFromUtf8(isolate,"SetAllKeys",v8::NewStringType::kNormal)
+    keyboardTemplate->Set(v8::String::NewFromUtf8(isolate,"SetAllKeysColor",v8::NewStringType::kNormal)
                         .ToLocalChecked(), v8::FunctionTemplate::New(isolate, SetAllKeys));
+    keyboardTemplate->Set(v8::String::NewFromUtf8(isolate,"UpdateKeys",v8::NewStringType::kNormal)
+                        .ToLocalChecked(), v8::FunctionTemplate::New(isolate, UpdateKeys));
+    keyboardTemplate->Set(v8::String::NewFromUtf8(isolate,"UpdateKey",v8::NewStringType::kNormal)
+                        .ToLocalChecked(), v8::FunctionTemplate::New(isolate, UpdateKey));
     keyboardTemplate->Set(v8::String::NewFromUtf8(isolate,"GetKeys",v8::NewStringType::kNormal)
                         .ToLocalChecked(), v8::FunctionTemplate::New(isolate, GetAllKeys));
     v8::Local<v8::Object> obj = keyboardTemplate->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
@@ -42,9 +46,123 @@ v8::Local<v8::Object> JsKeyboard::WrapKeyboard(v8::Isolate* isolate, const Keybo
     return handle_scope.Escape(obj);
 }
 
-void JsKeyboard::SetKeysColors(const v8::FunctionCallbackInfo<v8::Value>& args)
+void JsKeyboard::UpdateKey(const v8::FunctionCallbackInfo<v8::Value>& args)
 {
-    
+    v8::HandleScope handle_scope(args.GetIsolate());
+    JsKeyboard* jsKeyboard = nullptr;
+    {
+        v8::Local<v8::Object> self = args.Holder();
+        v8::Local<v8::External> wrap = v8::Local<v8::External>::Cast(self->GetInternalField(0));
+        void* ptr = wrap->Value();
+        jsKeyboard = static_cast<JsKeyboard*>(ptr);
+    }
+    int argsLength = args.Length();
+    if(argsLength > 0 && args[0]->IsObject())
+    {
+        bool colorSpecified = false;
+        uint32_t color = 0;
+        if(argsLength == 2 && args[1]->IsUint32())
+        {
+            auto maybeLocalColor = args[1]->ToUint32(args.GetIsolate()->GetCurrentContext());
+            if(!maybeLocalColor.IsEmpty())
+            {
+                color = maybeLocalColor.ToLocalChecked()->Value();
+                colorSpecified = true;
+            }
+        } 
+        else if (argsLength == 4 && args[1]->IsUint32() && args[2]->IsUint32() && args[3]->IsUint32())
+        {
+            auto maybeLocalRed = args[1]->ToUint32(args.GetIsolate()->GetCurrentContext());
+            auto maybeLocalGreen = args[2]->ToUint32(args.GetIsolate()->GetCurrentContext());
+            auto maybeLocalBlue = args[3]->ToUint32(args.GetIsolate()->GetCurrentContext());
+            if(!maybeLocalRed.IsEmpty() && !maybeLocalGreen.IsEmpty() && !maybeLocalBlue.IsEmpty())
+            {
+                auto red   = maybeLocalRed.ToLocalChecked()->Value();
+                auto green = maybeLocalGreen.ToLocalChecked()->Value();
+                auto blue  = maybeLocalBlue.ToLocalChecked()->Value();
+                color = ((red & 0xff) << 16) | ((green & 0xff) << 8) | (blue & 0xff);
+                colorSpecified = true;
+            }
+        }
+
+        auto maybeLocalObject = args[0]->ToObject(args.GetIsolate()->GetCurrentContext());
+        Keys keys;
+        if(!maybeLocalObject.IsEmpty())
+        {
+            auto keyExternalWrap = v8::Local<v8::External>::Cast(maybeLocalObject.ToLocalChecked()->GetInternalField(0));
+            void* ptr = keyExternalWrap->Value();
+            Key* key = static_cast<Key*>(ptr);
+            if(colorSpecified) key->color = color;
+            keys.push_back(*key);
+        }
+
+        jsKeyboard->keyboard->SetKeys(keys);
+        jsKeyboard->keyboard->Commit();
+    }
+}
+
+
+void JsKeyboard::UpdateKeys(const v8::FunctionCallbackInfo<v8::Value>& args)
+{
+    v8::HandleScope handle_scope(args.GetIsolate());
+    JsKeyboard* jsKeyboard = nullptr;
+    {
+        v8::Local<v8::Object> self = args.Holder();
+        v8::Local<v8::External> wrap = v8::Local<v8::External>::Cast(self->GetInternalField(0));
+        void* ptr = wrap->Value();
+        jsKeyboard = static_cast<JsKeyboard*>(ptr);
+    }
+    int argsLength = args.Length();
+    if(argsLength > 0 && args[0]->IsArray())
+    {
+        bool colorSpecified = false;
+        uint32_t color = 0;
+        if(argsLength == 2 && args[1]->IsUint32())
+        {
+            auto maybeLocalColor = args[1]->ToUint32(args.GetIsolate()->GetCurrentContext());
+            if(!maybeLocalColor.IsEmpty())
+            {
+                color = maybeLocalColor.ToLocalChecked()->Value();
+                colorSpecified = true;
+            }
+        } 
+        else if (argsLength == 4 && args[1]->IsUint32() && args[2]->IsUint32() && args[3]->IsUint32())
+        {
+            auto maybeLocalRed = args[1]->ToUint32(args.GetIsolate()->GetCurrentContext());
+            auto maybeLocalGreen = args[2]->ToUint32(args.GetIsolate()->GetCurrentContext());
+            auto maybeLocalBlue = args[3]->ToUint32(args.GetIsolate()->GetCurrentContext());
+            if(!maybeLocalRed.IsEmpty() && !maybeLocalGreen.IsEmpty() && !maybeLocalBlue.IsEmpty())
+            {
+                auto red   = maybeLocalRed.ToLocalChecked()->Value();
+                auto green = maybeLocalGreen.ToLocalChecked()->Value();
+                auto blue  = maybeLocalBlue.ToLocalChecked()->Value();
+                color = ((red & 0xff) << 16) | ((green & 0xff) << 8) | (blue & 0xff);
+                colorSpecified = true;
+            }
+        }
+
+        v8::Array* keysArray = v8::Array::Cast(*args[0]);
+        Keys keys;
+        keys.resize(keysArray->Length());
+        for(uint32_t i=0;i < keysArray->Length();i++)
+        {
+            auto maybeLocalKey = keysArray->Get(args.GetIsolate()->GetCurrentContext(),i);
+            if(!maybeLocalKey.IsEmpty())
+            {
+                auto maybeLocalObject = maybeLocalKey.ToLocalChecked()->ToObject(args.GetIsolate()->GetCurrentContext());
+                if(!maybeLocalObject.IsEmpty())
+                {
+                    auto keyExternalWrap = v8::Local<v8::External>::Cast(maybeLocalObject.ToLocalChecked()->GetInternalField(0));
+                    void* ptr = keyExternalWrap->Value();
+                    Key* key = static_cast<Key*>(ptr);
+                    if(colorSpecified) key->color = color;
+                    keys[i] = (*key);
+                }
+            }
+        }
+        jsKeyboard->keyboard->SetKeys(keys);
+        jsKeyboard->keyboard->Commit();
+    }
 }
 
 void JsKeyboard::GetAllKeys(const v8::FunctionCallbackInfo<v8::Value>& args)
@@ -137,40 +255,40 @@ void JsKeyboard::SetAllKeys(const v8::FunctionCallbackInfo<v8::Value>& args)
     JsKeyboard* jsKeyboard = static_cast<JsKeyboard*>(ptr);
     auto argsLength = args.Length();
     uint32_t color = 0;
-    if(argsLength > 0 && args[0]->IsInt32())
+    if(argsLength > 0 && args[0]->IsUint32())
     {
-        auto maybeLocalRed = args[0]->ToInt32(args.GetIsolate()->GetCurrentContext());
+        auto maybeLocalRed = args[0]->ToUint32(args.GetIsolate()->GetCurrentContext());
         if(!maybeLocalRed.IsEmpty())
         {
             auto red = maybeLocalRed.ToLocalChecked()->Value();
-            if(red>=0 && red <= 255)
+            if(argsLength == 1)
             {
-                color = red << 16;
+                //if we only have 1 argument, interpret that as the color
+                //e.g. 0xffaa11
+                color = red;
+            }
+            else
+            {
+                color = (red & 0xff) << 16;
             }
         }
     }
-    if(argsLength > 1 && args[1]->IsInt32())
+    if(argsLength > 1 && args[1]->IsUint32())
     {
-        auto maybeLocalGreen = args[1]->ToInt32(args.GetIsolate()->GetCurrentContext());
+        auto maybeLocalGreen = args[1]->ToUint32(args.GetIsolate()->GetCurrentContext());
         if(!maybeLocalGreen.IsEmpty())
         {
             auto green = maybeLocalGreen.ToLocalChecked()->Value();
-            if(green>=0 && green <= 255)
-            {
-                color |= green << 8;
-            }
+            color |= (green & 0xff) << 8;
         }
     }
-    if(argsLength > 2 && args[2]->IsInt32())
+    if(argsLength > 2 && args[2]->IsUint32())
     {
-        auto maybeLocalBlue = args[2]->ToInt32(args.GetIsolate()->GetCurrentContext());
+        auto maybeLocalBlue = args[2]->ToUint32(args.GetIsolate()->GetCurrentContext());
         if(!maybeLocalBlue.IsEmpty())
         {
             auto blue = maybeLocalBlue.ToLocalChecked()->Value();
-            if(blue>=0 && blue <= 255)
-            {
-                color |= blue;
-            }
+            color |= (blue & 0xff);
         }
     }
     jsKeyboard->keyboard->SetAllKeys(color);
