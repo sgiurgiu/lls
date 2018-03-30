@@ -10,10 +10,12 @@ class JsKeyboard
 public:
     JsKeyboard(v8::Isolate*, const Keyboard* const);
     static void GetKeyboards(const v8::FunctionCallbackInfo<v8::Value>& args);
+    static void GetDefaultKeyboard(const v8::FunctionCallbackInfo<v8::Value>& args);
 private:
     static void ToString(const v8::FunctionCallbackInfo<v8::Value>& args);
     static void SetAllKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
     static void GetAllKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+    static void GetKeysMatrix(const v8::FunctionCallbackInfo<v8::Value>& args);
     static void UpdateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
     static v8::Local<v8::Object> WrapKeyboard(v8::Isolate* isolate, 
                                               const Keyboard* const keyboard);

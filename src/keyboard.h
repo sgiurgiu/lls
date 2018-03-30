@@ -87,7 +87,9 @@ enum class StartupMode : uint8_t {
 
          ctrl_left = static_cast<uint8_t>(KeyAddressGroup::keys) << 8 | 0xe0,
          shift_left, alt_left, win_left,
-         ctrl_right, shift_right, alt_right, win_right
+         ctrl_right, shift_right, alt_right, win_right,
+         
+         none = 0xffff
 
 };
 class KeyboardError : public std::runtime_error
@@ -98,6 +100,7 @@ public:
 };
 struct Key {
     Key(){}
+    Key(KeyCode code):code(code){}
     Key(KeyCode code,const std::string& name,uint32_t color):
     code(code),name(name),color(color){}
     KeyCode code;
@@ -105,6 +108,7 @@ struct Key {
     uint32_t color = 0;
 };
 typedef std::vector<Key> Keys;
+typedef std::vector<Keys> KeysMatrix;
 class Keyboard
 {
 public:
@@ -140,6 +144,10 @@ public:
     bool Commit() const;
     Keys GetAllKeys() const;
     bool SetKeys(const Keys& keys) const;
+    //returns the keys as a matrix, with the length the 
+    //highest number of keys in a row and the height the number of rows
+    //on the keyboard
+    KeysMatrix GetKeysMatrix() const;
 private:
     typedef std::vector<unsigned char> byte_buffer_t;
     int Write(byte_buffer_t &data) const;

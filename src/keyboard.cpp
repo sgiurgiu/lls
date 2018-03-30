@@ -317,7 +317,6 @@ bool Keyboard::SetAllKeys(uint32_t color) const
         return {key.code, key.name, color};
     };
     Keys keys;
-    bool retval = false;
     switch (model) {
     case KeyboardModel::g213:
         //for (uint8_t rIndex=0x01; rIndex <= 0x05; rIndex++) if (! setRegion(rIndex, color)) return false;
@@ -340,11 +339,10 @@ bool Keyboard::SetAllKeys(uint32_t color) const
         std::transform(keyGroupNumeric.begin(),keyGroupNumeric.end(),std::back_inserter(keys),makeKeyValue);
         std::transform(keyGroupModifiers.begin(),keyGroupModifiers.end(),std::back_inserter(keys),makeKeyValue);
         std::transform(keyGroupKeys.begin(),keyGroupKeys.end(),std::back_inserter(keys),makeKeyValue);
-        retval = SetKeys(keys);
+        return SetKeys(keys);
     default:
-        retval = false;
+        return false;
     }
-    return retval;
 }
 
 Keys Keyboard::GetAllKeys() const
@@ -361,6 +359,67 @@ Keys Keyboard::GetAllKeys() const
     std::copy(keyGroupModifiers.begin(),keyGroupModifiers.end(),std::back_inserter(allKeys));
     std::copy(keyGroupKeys.begin(),keyGroupKeys.end(),std::back_inserter(allKeys));
     return allKeys;
+}
+
+KeysMatrix Keyboard::GetKeysMatrix() const
+{
+    KeysMatrix matrix;
+    Key none = {KeyCode::none,"",0};
+    
+    switch(model)
+    {
+        case KeyboardModel::g810:
+        {
+            Keys row1;
+            row1.push_back({KeyCode::logo,"logo", 0});
+            for(int i=0;i<9;i++) row1.push_back(none);
+            row1.push_back({KeyCode::num,"num", 0});
+            row1.push_back({KeyCode::caps,"caps", 0});
+            row1.push_back({KeyCode::scroll,"scroll", 0});
+            row1.push_back(none);
+            row1.push_back({KeyCode::game,"game", 0});
+            row1.push_back(none);
+            row1.push_back({KeyCode::backlight,"backlight", 0});
+            row1.push_back({KeyCode::mute,"mute", 0});
+            for(int i=0;i<3;i++) row1.push_back(none);
+            matrix.push_back(row1);
+            Keys row2;
+            row2.push_back({KeyCode::esc,"esc", 0});
+            row2.push_back(none);
+            row2.insert(row2.end(),keyGroupFKeys.begin(),keyGroupFKeys.end());
+            row2.insert(row2.end(),keyGroupFunctions.begin()+1,keyGroupFunctions.begin()+4);
+            row2.push_back({KeyCode::play, "play", 0});
+            row2.push_back({KeyCode::stop, "stop", 0});
+            row2.push_back({KeyCode::prev, "prev", 0});
+            row2.push_back({KeyCode::next, "next", 0});
+            matrix.push_back(row2);
+            Keys row3;
+            row3.push_back({KeyCode::tilde, "~", 0});
+            row3.insert(row3.end(),keyGroupKeys.begin()+27,keyGroupKeys.begin()+37);
+            row3.push_back({KeyCode::minus, "-", 0});
+            row3.push_back({KeyCode::equal, "=", 0});
+            row3.push_back({KeyCode::backspace, "backspace", 0});
+            row3.push_back({KeyCode::insert, "insert", 0});
+            row3.push_back({KeyCode::home, "home", 0});
+            row3.push_back({KeyCode::page_up, "page up", 0});
+            row3.push_back({KeyCode::num_lock, "num lock", 0});
+            row3.push_back({KeyCode::num_slash, "num /", 0});
+            row3.push_back({KeyCode::num_asterisk, "num *", 0});
+            row3.push_back({KeyCode::num_minus, "num -", 0});
+            matrix.push_back(row3);
+            Keys row4;
+            row4.push_back({KeyCode::tab, "tab", 0});
+            
+            
+            
+        }
+            break;
+        default:
+            std::cerr <<"GetKeysMatrix not supported on this keyboard model"<<std::endl;
+            break;
+    }
+    
+    return matrix;
 }
 
 const Keyboard* const Keyboard::GetDefaultKeyboard()

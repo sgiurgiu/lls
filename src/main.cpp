@@ -87,6 +87,7 @@ void ExecuteMainScript(const std::string& scriptSource,v8::Isolate* isolate)
     globalTemplate->Set(v8::String::NewFromUtf8(isolate,"include",v8::NewStringType::kNormal).ToLocalChecked(), v8::FunctionTemplate::New(isolate, Globals::Require));
     globalTemplate->Set(v8::String::NewFromUtf8(isolate,"sleep",v8::NewStringType::kNormal).ToLocalChecked(), v8::FunctionTemplate::New(isolate, Globals::Sleep));
     globalTemplate->Set(v8::String::NewFromUtf8(isolate,"GetKeyboards",v8::NewStringType::kNormal).ToLocalChecked(), v8::FunctionTemplate::New(isolate, JsKeyboard::GetKeyboards));
+    globalTemplate->Set(v8::String::NewFromUtf8(isolate,"GetDefaultKeyboard",v8::NewStringType::kNormal).ToLocalChecked(), v8::FunctionTemplate::New(isolate, JsKeyboard::GetDefaultKeyboard));
     
     globalTemplate->SetAccessor(v8::String::NewFromUtf8(isolate,"num",v8::NewStringType::kNormal).ToLocalChecked(),Globals::GetNum);
     
