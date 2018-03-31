@@ -89,3 +89,4 @@ sleep(ms);
 ```
 Run with `lls <path to script>`
 
+The application was only possible because of the [MatMoul/g810-led](https://github.com/MatMoul/g810-led repository)
