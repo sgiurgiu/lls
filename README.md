@@ -12,21 +12,21 @@ if(keyboard != null) {
 }
 ```
 Will have this effect:
+
 [![Set all keys to red](https://img.youtube.com/vi/cRtkRXbmhZg/0.jpg)](https://www.youtube.com/watch?v=cRtkRXbmhZg) 
 
 While something like:
 ```javascript
 var keyboard = GetDefaultKeyboard();
-if(keyboard != null)
-{
-    for (var i=0;i<20;i++)
-    {
+if(keyboard != null) {
+    for (var i=0;i<20;i++) {
         keyboard.SetAllKeysColor(i*10,i*10,i*10);    
         sleep(100);
     }    
 }
 ```
 Will have this effect:
+
 [![Set all keys to red](https://img.youtube.com/vi/ClRO3pC96i8/0.jpg)](https://www.youtube.com/watch?v=ClRO3pC96i8) 
 
 ### Available APIs
